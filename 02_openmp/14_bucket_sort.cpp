@@ -18,7 +18,7 @@ int main() {
   std::vector<int> offset(range,0);
   for (int i=1; i<range; i++) 
     offset[i] = offset[i-1] + bucket[i-1];
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
   for (int i=0; i<range; i++) {
     int base = offset[i];
 #pragma omp parallel for
