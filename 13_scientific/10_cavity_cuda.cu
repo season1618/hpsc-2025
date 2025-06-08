@@ -149,9 +149,6 @@ int main() {
 
       compute_p<<<N_BLOCK, N_THREAD>>>();
       cudaDeviceSynchronize();
-
-      //compute_p_rest<<<1, 1>>>();
-      //cudaDeviceSynchronize();
     }
     copy_uv<<<N_BLOCK, N_THREAD>>>();
     cudaDeviceSynchronize();
