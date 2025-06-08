@@ -81,19 +81,6 @@ __global__ void compute_p() {
            / (2 * (dx*dx + dy*dy));
 }
 
-__global__ void compute_p_rest() {      
-      for (int j=0; j<ny; j++) {
-        // Compute p[j][0] and p[j][nx-1]
-	p[j][nx-1] = p[j][nx-2];
-        p[j][0] = p[j][1];
-      }
-      for (int i=0; i<nx; i++) {
-	// Compute p[0][i] and p[ny-1][i]
-	p[0][i] = p[1][i];
-	p[ny-1][i] = 0;
-      }
-}
-
 __global__ void copy_uv() {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   int j = id / nx;
