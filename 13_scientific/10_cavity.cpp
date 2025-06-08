@@ -39,10 +39,12 @@ int main() {
     for (int j=1; j<ny-1; j++) {
       for (int i=1; i<nx-1; i++) {
         // Compute b[j][i]
-	b[j][i] = rho * (1 / dt *
-                  ((u[j][i+1] - u[j][i-1]) / (2 * dx) + (v[j+1][i] - v[j-1][i]) / (2 * dy)) -
-                  ((u[j][i+1] - u[j][i-1]) / (2 * dx))*((u[j][i+1] - u[j][i-1]) / (2 * dx)) - 2 * ((u[j+1][i] - u[j-1][i]) / (2 * dy) *
-                   (v[j][i+1] - v[j][i-1]) / (2 * dx)) - ((v[j+1][i] - v[j-1][i]) / (2 * dy))*((v[j+1][i] - v[j-1][i]) / (2 * dy)));
+	float dudx = (u[j][i+1] - u[j][i-1]) / (2 * dx);
+	float dudy = (u[j][i+1] - u[j][i-1]) / (2 * dy);
+	float dvdx = (v[j+1][i] - v[j-1][i]) / (2 * dx);
+	float dvdy = (v[j+1][i] - v[j-1][i]) / (2 * dy);
+	b[j][i] = rho * (1 / dt * (dudx + dvdy)
+		       - dudx * dudx - 2 * dudy * dvdx - dvdy * dvdy);
       }
     }
     for (int it=0; it<nit; it++) {
