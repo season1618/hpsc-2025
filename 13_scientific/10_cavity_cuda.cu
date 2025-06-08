@@ -6,10 +6,8 @@
 #define nx 41
 #define ny 41
 
-//#define N_THREAD 1024
-//#define N_BLOCK (ny * nx + N_THREAD - 1) / N_THREAD
-#define N_THREAD 1
-#define N_BLOCK 1
+#define N_THREAD 1024
+#define N_BLOCK (ny * nx + N_THREAD - 1) / N_THREAD
 
 using namespace std;
 
@@ -29,37 +27,48 @@ __device__ double nu = .02;
 
 __global__ void init() {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (int j=0; j<ny; j++) {
-    for (int i=0; i<nx; i++) {
-      u[j][i] = 0;
-      v[j][i] = 0;
-      p[j][i] = 0;
-      b[j][i] = 0;
-    }
-  }
+  int j = id / nx;
+  int i = id % nx;
+  u[j][i] = 0;
+  v[j][i] = 0;
+  p[j][i] = 0;
+  b[j][i] = 0;
 }
 
 __global__ void compute_b() {
-    for (int j=1; j<ny-1; j++) {
-      for (int i=1; i<nx-1; i++) {
-        // Compute b[j][i]
-	float dudx = (u[j][i+1] - u[j][i-1]) / (2 * dx);
-	float dudy = (u[j][i+1] - u[j][i-1]) / (2 * dy);
-	float dvdx = (v[j+1][i] - v[j-1][i]) / (2 * dx);
-	float dvdy = (v[j+1][i] - v[j-1][i]) / (2 * dy);
-	b[j][i] = rho * (1 / dt * (dudx + dvdy)
-		       - dudx * dudx - 2 * dudy * dvdx - dvdy * dvdy);
-      }
-    }
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  int j = id / nx;
+  int i = id % nx;
+  
+  // Compute b[j][i]
+  float dudx = (u[j][i+1] - u[j][i-1]) / (2 * dx);
+  float dudy = (u[j][i+1] - u[j][i-1]) / (2 * dy);
+  float dvdx = (v[j+1][i] - v[j-1][i]) / (2 * dx);
+  float dvdy = (v[j+1][i] - v[j-1][i]) / (2 * dy);
+  b[j][i] = rho * (1 / dt * (dudx + dvdy)
+		 - dudx * dudx - 2 * dudy * dvdx - dvdy * dvdy);
 }   
 
-__global__ void copy_pn() {
-    for (int j=0; j<ny; j++)
-      for (int i=0; i<nx; i++)
-	pn[j][i] = p[j][i];
+__global__ void copy_p() {
+  /*int id = blockIdx.x * blockDim.x + threadIdx.x;
+  int j = id / nx;
+  int i = id % nx;
+  */
+
+  for (int j=0; j<ny; j++)
+    for (int i=0; i<nx; i++)
+      pn[j][i] = p[j][i];
 }
 
 __global__ void compute_p() {
+  /*int id = blockIdx.x * blockDim.x + threadIdx.x;
+  int j = id / nx;
+  int i = id % nx;
+  */
+
+  //if (j == 0 || j == ny-1) return;
+  //if (i == 0 || i == nx-1) return;
+  
   for (int j=1; j<ny-1; j++) {
     for (int i=1; i<nx-1; i++) {
       // Compute p[j][i]
@@ -85,30 +94,36 @@ __global__ void compute_p_rest() {
 }
 
 __global__ void copy_uv() {
-    for (int j=0; j<ny; j++) {
-      for (int i=0; i<nx; i++) {
-        un[j][i] = u[j][i];
-	vn[j][i] = v[j][i];
-      }
-    }
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  int j = id / nx;
+  int i = id % nx;
+
+  un[j][i] = u[j][i];
+  vn[j][i] = v[j][i];
 }
 
 __global__ void compute_uv() {
-    for (int j=1; j<ny-1; j++) {
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  int j = id / nx;
+  int i = id % nx;
+  
+  // Compute u[j][i] and v[j][i]
+  //if (j == 0 || j == ny-1) return;
+  //if (i == 0 || i == nx-1) return;
+  
+  for (int j=1; j<ny-1; j++) {
       for (int i=1; i<nx-1; i++) {
-	// Compute u[j][i] and v[j][i]
-	u[j][i] = un[j][i] - un[j][i] * dt / dx * (un[j][i] - un[j][i - 1])
-                           - vn[j][i] * dt / dy * (un[j][i] - un[j - 1][i])
-                           - dt / (2 * rho * dx) * (p[j][i+1] - p[j][i-1])
-                           + nu * dt / (dx*dx) * (un[j][i+1] - 2 * un[j][i] + un[j][i-1])
-                           + nu * dt / (dy*dy) * (un[j+1][i] - 2 * un[j][i] + un[j-1][i]);
-        v[j][i] = vn[j][i] - un[j][i] * dt / dx * (vn[j][i] - vn[j][i - 1])
-                           - vn[j][i] * dt / dy * (vn[j][i] - vn[j - 1][i])
-                           - dt / (2 * rho * dx) * (p[j+1][i] - p[j-1][i])
-                           + nu * dt / (dx*dx) * (vn[j][i+1] - 2 * vn[j][i] + vn[j][i-1])
-                           + nu * dt / (dy*dy) * (vn[j+1][i] - 2 * vn[j][i] + vn[j-1][i]);
-      }
-    }
+  u[j][i] = un[j][i] - un[j][i] * dt / dx * (un[j][i] - un[j][i - 1])
+                     - vn[j][i] * dt / dy * (un[j][i] - un[j - 1][i])
+                     - dt / (2 * rho * dx) * (p[j][i+1] - p[j][i-1])
+                     + nu * dt / (dx*dx) * (un[j][i+1] - 2 * un[j][i] + un[j][i-1])
+                     + nu * dt / (dy*dy) * (un[j+1][i] - 2 * un[j][i] + un[j-1][i]);
+  v[j][i] = vn[j][i] - un[j][i] * dt / dx * (vn[j][i] - vn[j][i - 1])
+                     - vn[j][i] * dt / dy * (vn[j][i] - vn[j - 1][i])
+                     - dt / (2 * rho * dx) * (p[j+1][i] - p[j-1][i])
+                     + nu * dt / (dx*dx) * (vn[j][i+1] - 2 * vn[j][i] + vn[j][i-1])
+                     + nu * dt / (dy*dy) * (vn[j+1][i] - 2 * vn[j][i] + vn[j-1][i]);
+      }}
 }
 
 __global__ void compute_uv_rest() {
@@ -146,22 +161,24 @@ int main() {
     compute_b<<<N_BLOCK, N_THREAD>>>();
     cudaDeviceSynchronize();
     for (int it=0; it<nit; it++) {
-      copy_pn<<<N_BLOCK, N_THREAD>>>();
+      //copy_p<<<N_BLOCK, N_THREAD>>>();
+      copy_p<<<1, 1>>>();
       cudaDeviceSynchronize();
 
-      compute_p<<<N_BLOCK, N_THREAD>>>();
+      //compute_p<<<N_BLOCK, N_THREAD>>>();
+      compute_p<<<1, 1>>>();
       cudaDeviceSynchronize();
 
-      compute_p_rest<<<N_BLOCK, N_THREAD>>>();
+      compute_p_rest<<<1, 1>>>();
       cudaDeviceSynchronize();
     }
     copy_uv<<<N_BLOCK, N_THREAD>>>();
     cudaDeviceSynchronize();
 
-    compute_uv<<<N_BLOCK, N_THREAD>>>();
+    compute_uv<<<1, 1>>>();
     cudaDeviceSynchronize();
 
-    compute_uv_rest<<<N_BLOCK, N_THREAD>>>();
+    compute_uv_rest<<<1, 1>>>();
     cudaDeviceSynchronize();
 
     if (n % 10 == 0) {
